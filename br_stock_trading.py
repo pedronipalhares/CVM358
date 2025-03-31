@@ -244,6 +244,7 @@ def get_available_files(base_url):
 def main():
     """Main function to extract and process Brazilian stock trading data."""
     try:
+        start_time = time.time()
         print(f"\n{Fore.CYAN}🚀 Starting CVM358 Data Extraction{Style.RESET_ALL}\n")
         
         # Create temporary directory
@@ -254,6 +255,7 @@ def main():
         base_url = 'https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/VLMO/DADOS/'
         
         # Get available files
+        download_start = time.time()
         zip_files = get_available_files(base_url)
         logger.info(f"📦 Found {len(zip_files)} zip files")
         
@@ -277,12 +279,18 @@ def main():
                     logger.error(f"❌ Error processing {zip_file}: {str(e)}")
                     continue
         
+        download_time = time.time() - download_start
+        logger.info(f"⏱️ Download time: {download_time:.2f} seconds")
+        
         if not all_csv_files:
             raise Exception("❌ No CSV files were successfully downloaded and extracted")
         
         # Process data
+        process_start = time.time()
         logger.info("⚙️ Processing trading data...")
         consolidated_data, individual_data = process_trading_data(all_csv_files)
+        process_time = time.time() - process_start
+        logger.info(f"⏱️ Processing time: {process_time:.2f} seconds")
         logger.info("✅ Data processing completed")
         
         # Create datasets directory if it doesn't exist
@@ -307,7 +315,8 @@ def main():
         report_generator = ReportGenerator()
         report = report_generator.generate_report(consolidated_data, individual_data)
         report_generator.print_report(report)
-        logger.info(f"📄 HTML report generated in the reports directory")
+        logger.info(f"📄 Latest report generated: reports/latest_report.html")
+        logger.info(f"📚 Historical reports stored in: reports/history/")
         
         # Clean up
         for file in temp_dir.glob('*'):
@@ -315,8 +324,10 @@ def main():
         temp_dir.rmdir()
         logger.info("🧹 Cleaned up temporary files")
         
+        total_time = time.time() - start_time
         print(f"\n{Fore.GREEN}✨ Data extraction completed successfully!{Style.RESET_ALL}")
-        print(f"{Fore.CYAN}📄 A detailed HTML report has been generated in the reports directory.{Style.RESET_ALL}\n")
+        print(f"{Fore.CYAN}📄 A detailed HTML report has been generated in the reports directory.{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}⏱️ Total execution time: {total_time:.2f} seconds{Style.RESET_ALL}\n")
         
     except Exception as e:
         logger.error(f"❌ Error in main function: {str(e)}")

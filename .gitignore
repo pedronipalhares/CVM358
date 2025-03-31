@@ -1,17 +1,51 @@
-# Python virtual environment
-venv/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
+datasets/
+reports/*.html
+reports/history/
+reports/run_history.json
+!reports/report_generator.py
+!reports/__init__.py
+
+# OS specific
+.DS_Store
+Thumbs.db
 
 # Data files
-datasets/
 *.csv
 
 # Reports
 reports/
-*.json
-
-# IDE files
-.vscode/
-.idea/
-*.swp 
+*.json 
