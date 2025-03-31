@@ -230,9 +230,10 @@ class ReportGenerator:
         
         # Get new records since last run
         last_run = history.get('last_run', {})
+        last_run_records = last_run.get('total_records', {})
         new_records = {
-            'consolidated': total_records['consolidated'] - last_run.get('total_records', {}).get('consolidated', 0),
-            'individual': total_records['individual'] - last_run.get('total_records', {}).get('individual', 0)
+            'consolidated': total_records['consolidated'] - last_run_records.get('consolidated', 0),
+            'individual': total_records['individual'] - last_run_records.get('individual', 0)
         }
         
         # Create report data
