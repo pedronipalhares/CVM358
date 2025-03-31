@@ -22,10 +22,30 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import zipfile
 from reports.report_generator import ReportGenerator
+from colorama import init, Fore, Style
+
+# Initialize colorama
+init()
+
+# Configure logging with colors
+class ColoredFormatter(logging.Formatter):
+    """Custom formatter with colors"""
+    def format(self, record):
+        if record.levelno >= logging.ERROR:
+            color = Fore.RED
+        elif record.levelno >= logging.WARNING:
+            color = Fore.YELLOW
+        else:
+            color = Fore.GREEN
+        record.msg = f"{color}{record.msg}{Style.RESET_ALL}"
+        return super().format(record)
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+handler.setFormatter(ColoredFormatter('%(message)s'))
+logger.addHandler(handler)
 
 # Suppress only the specific warning about unverified HTTPS requests
 warnings.filterwarnings('ignore', message='Unverified HTTPS request')
@@ -224,36 +244,39 @@ def get_available_files(base_url):
 def main():
     """Main function to extract and process Brazilian stock trading data."""
     try:
+        print(f"\n{Fore.CYAN}🚀 Starting CVM358 Data Extraction{Style.RESET_ALL}\n")
+        
         # Create temporary directory
         temp_dir = Path(tempfile.mkdtemp())
-        logger.info(f"Created temporary directory: {temp_dir}")
+        logger.info(f"📁 Created temporary directory: {temp_dir}")
         
         # Base URL for the data
         base_url = 'https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/VLMO/DADOS/'
         
         # Get available files
         zip_files = get_available_files(base_url)
-        logger.info(f"Found {len(zip_files)} zip files")
+        logger.info(f"📦 Found {len(zip_files)} zip files")
         
         all_csv_files = []
         for zip_file in zip_files:
             # Download and extract each zip file
             url = base_url + zip_file
-            logger.info(f"Processing {url}")
+            logger.info(f"📥 Processing {zip_file}")
             
             try:
                 csv_files = download_and_extract_zip(url, temp_dir)
                 all_csv_files.extend(csv_files)
             except Exception as e:
-                logger.error(f"Error processing {zip_file}: {str(e)}")
+                logger.error(f"❌ Error processing {zip_file}: {str(e)}")
                 continue
         
         if not all_csv_files:
-            raise Exception("No CSV files were successfully downloaded and extracted")
+            raise Exception("❌ No CSV files were successfully downloaded and extracted")
         
         # Process data
+        logger.info("⚙️ Processing trading data...")
         consolidated_data, individual_data = process_trading_data(all_csv_files)
-        logger.info("Processed trading data")
+        logger.info("✅ Data processing completed")
         
         # Create datasets directory if it doesn't exist
         datasets_dir = utils.ensure_datasets_dir()
@@ -262,19 +285,18 @@ def main():
         if not consolidated_data.empty:
             output_path = datasets_dir / 'Brazil_Stock_Trading_Consolidated.csv'
             consolidated_data.to_csv(output_path, index=False, encoding='utf-8-sig')
-            logger.info(f"Saved Consolidated data to: {output_path}")
-            logger.info(f"Consolidated data shape: {consolidated_data.shape}")
-            logger.info(f"Consolidated columns: {consolidated_data.columns.tolist()}")
+            logger.info(f"💾 Saved Consolidated data to: {output_path}")
+            logger.info(f"📊 Consolidated data shape: {consolidated_data.shape}")
             
         # Save individual data
         if not individual_data.empty:
             output_path = datasets_dir / 'Brazil_Stock_Trading_Individual.csv'
             individual_data.to_csv(output_path, index=False, encoding='utf-8-sig')
-            logger.info(f"Saved Individual data to: {output_path}")
-            logger.info(f"Individual data shape: {individual_data.shape}")
-            logger.info(f"Individual columns: {individual_data.columns.tolist()}")
+            logger.info(f"💾 Saved Individual data to: {output_path}")
+            logger.info(f"📊 Individual data shape: {individual_data.shape}")
         
         # Generate and print report
+        logger.info("📈 Generating report...")
         report_generator = ReportGenerator()
         report = report_generator.generate_report(consolidated_data, individual_data)
         report_generator.print_report(report)
@@ -283,10 +305,12 @@ def main():
         for file in temp_dir.glob('*'):
             file.unlink()
         temp_dir.rmdir()
-        logger.info("Cleaned up temporary files")
+        logger.info("🧹 Cleaned up temporary files")
+        
+        print(f"\n{Fore.GREEN}✨ Data extraction completed successfully!{Style.RESET_ALL}\n")
         
     except Exception as e:
-        logger.error(f"Error in main function: {str(e)}")
+        logger.error(f"❌ Error in main function: {str(e)}")
         raise
 
 if __name__ == "__main__":
