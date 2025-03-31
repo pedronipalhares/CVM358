@@ -296,10 +296,11 @@ def main():
             logger.info(f"📊 Individual data shape: {individual_data.shape}")
         
         # Generate and print report
-        logger.info("📈 Generating report...")
+        logger.info("📈 Generating reports...")
         report_generator = ReportGenerator()
         report = report_generator.generate_report(consolidated_data, individual_data)
         report_generator.print_report(report)
+        logger.info(f"📄 HTML report generated in the reports directory")
         
         # Clean up
         for file in temp_dir.glob('*'):
@@ -307,7 +308,8 @@ def main():
         temp_dir.rmdir()
         logger.info("🧹 Cleaned up temporary files")
         
-        print(f"\n{Fore.GREEN}✨ Data extraction completed successfully!{Style.RESET_ALL}\n")
+        print(f"\n{Fore.GREEN}✨ Data extraction completed successfully!{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}📄 A detailed HTML report has been generated in the reports directory.{Style.RESET_ALL}\n")
         
     except Exception as e:
         logger.error(f"❌ Error in main function: {str(e)}")
