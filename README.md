@@ -41,11 +41,23 @@ python extractor/br_stock_trading.py
 The script will:
 1. Download the latest trading data from CVM
 2. Process both consolidated and individual trading data
-3. Save the results in CSV format in the `datasets` directory
+3. Save the results in CSV format in the `datasets` directory at the root of the project
+
+## Project Structure
+
+```
+CVM358/
+├── README.md
+├── requirements.txt
+├── datasets/           # Output directory for CSV files
+└── extractor/
+    ├── br_stock_trading.py
+    └── utils.py
+```
 
 ## Output Files
 
-The extractor generates two main CSV files:
+The extractor generates two main CSV files in the `datasets` directory:
 - `Brazil_Stock_Trading_Consolidated.csv`: Contains consolidated trading data
 - `Brazil_Stock_Trading_Individual.csv`: Contains individual trading data
 
