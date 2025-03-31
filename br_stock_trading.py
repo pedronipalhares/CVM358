@@ -258,17 +258,24 @@ def main():
         logger.info(f"📦 Found {len(zip_files)} zip files")
         
         all_csv_files = []
-        for zip_file in zip_files:
-            # Download and extract each zip file
-            url = base_url + zip_file
-            logger.info(f"📥 Processing {zip_file}")
+        # Use ThreadPoolExecutor for parallel downloads
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            # Create future tasks for each zip file
+            future_to_zip = {
+                executor.submit(download_and_extract_zip, base_url + zip_file, temp_dir): zip_file 
+                for zip_file in zip_files
+            }
             
-            try:
-                csv_files = download_and_extract_zip(url, temp_dir)
-                all_csv_files.extend(csv_files)
-            except Exception as e:
-                logger.error(f"❌ Error processing {zip_file}: {str(e)}")
-                continue
+            # Process completed downloads
+            for future in concurrent.futures.as_completed(future_to_zip):
+                zip_file = future_to_zip[future]
+                try:
+                    logger.info(f"📥 Processing {zip_file}")
+                    csv_files = future.result()
+                    all_csv_files.extend(csv_files)
+                except Exception as e:
+                    logger.error(f"❌ Error processing {zip_file}: {str(e)}")
+                    continue
         
         if not all_csv_files:
             raise Exception("❌ No CSV files were successfully downloaded and extracted")
