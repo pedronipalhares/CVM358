@@ -23,6 +23,7 @@ from urllib3.util.retry import Retry
 import zipfile
 from reports.report_generator import ReportGenerator
 from colorama import init, Fore, Style
+import shutil
 
 # Initialize colorama
 init()
@@ -241,6 +242,35 @@ def get_available_files(base_url):
         logger.error(f"Error getting available files: {str(e)}")
         raise
 
+def ensure_datasets_dir():
+    """Ensure the datasets directory exists and return its path."""
+    datasets_dir = Path('datasets')
+    datasets_dir.mkdir(exist_ok=True)
+    
+    # Create backup directory
+    backup_dir = datasets_dir / 'history'
+    backup_dir.mkdir(exist_ok=True)
+    
+    return datasets_dir
+
+def backup_dataset(file_path, backup_dir):
+    """Create a backup of a dataset with timestamp."""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    file_name = file_path.name
+    base_name = file_name.rsplit('.', 1)[0]
+    extension = file_name.rsplit('.', 1)[1]
+    backup_path = backup_dir / f"{base_name}_{timestamp}.{extension}"
+    
+    # Copy the file to backup
+    shutil.copy2(file_path, backup_path)
+    
+    # Keep only the last 5 backups for each dataset
+    pattern = f"{base_name}_*.{extension}"
+    backup_files = sorted(backup_dir.glob(pattern))
+    if len(backup_files) > 5:
+        for old_file in backup_files[:-5]:
+            old_file.unlink()
+
 def main():
     """Main function to extract and process Brazilian stock trading data."""
     try:
@@ -294,7 +324,8 @@ def main():
         logger.info("✅ Data processing completed")
         
         # Create datasets directory if it doesn't exist
-        datasets_dir = utils.ensure_datasets_dir()
+        datasets_dir = ensure_datasets_dir()
+        backup_dir = datasets_dir / 'history'
         
         # Save consolidated data
         if not consolidated_data.empty:
@@ -302,6 +333,8 @@ def main():
             consolidated_data.to_csv(output_path, index=False, encoding='utf-8-sig')
             logger.info(f"💾 Saved Consolidated data to: {output_path}")
             logger.info(f"📊 Consolidated data shape: {consolidated_data.shape}")
+            backup_dataset(output_path, backup_dir)
+            logger.info(f"📚 Created backup of Consolidated data in: {backup_dir}")
             
         # Save individual data
         if not individual_data.empty:
@@ -309,6 +342,8 @@ def main():
             individual_data.to_csv(output_path, index=False, encoding='utf-8-sig')
             logger.info(f"💾 Saved Individual data to: {output_path}")
             logger.info(f"📊 Individual data shape: {individual_data.shape}")
+            backup_dataset(output_path, backup_dir)
+            logger.info(f"📚 Created backup of Individual data in: {backup_dir}")
         
         # Generate and print report
         logger.info("📈 Generating reports...")

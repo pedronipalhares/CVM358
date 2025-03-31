@@ -32,7 +32,8 @@ env/
 *.swo
 
 # Project specific
-datasets/
+datasets/*.csv
+datasets/history/
 reports/*.html
 reports/history/
 reports/run_history.json
