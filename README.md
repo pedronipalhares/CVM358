@@ -1,53 +1,53 @@
-# CVM358 - Brazilian Stock Trading Data Extractor
+# CVM358 - Brazilian Insider Trading Data Extractor
 
 ## 📊 Overview
 
-This project extracts and processes Brazilian stock trading data from the CVM (Comissão de Valores Mobiliários) website, specifically focusing on the VLMO (Valores Mobiliários) dataset. The CVM is Brazil's Securities and Exchange Commission, responsible for regulating and supervising the securities market.
+This project extracts and processes Brazilian insider trading data from the CVM (Comissão de Valores Mobiliários) website, specifically focusing on the CVM358 dataset. CVM358 refers to CVM Instruction 358/02, which regulates the disclosure of insider trading and related-party transactions in the Brazilian market.
 
 ## 🎯 Purpose
 
-The Brazilian stock market (B3) is Latin America's largest exchange and one of the world's most important emerging markets. This tool helps researchers, analysts, and investors to:
+CVM358 is crucial for market transparency and corporate governance in Brazil. This tool helps stakeholders to:
 
-- Track trading patterns and market trends
-- Monitor company performance and market capitalization
-- Analyze market liquidity and trading volumes
-- Study market behavior during different economic cycles
-- Support academic research and market studies
-- Enable compliance and regulatory reporting
+- Monitor insider trading activities
+- Track related-party transactions
+- Ensure compliance with regulatory requirements
+- Analyze trading patterns of company insiders
+- Support corporate governance analysis
+- Enable regulatory reporting and compliance
 
 ## 📈 Data Context
 
 ### What We're Tracking
 
-The data includes crucial information about Brazilian publicly traded companies:
+The data includes detailed information about insider trading and related-party transactions:
 
-1. **Trading Data**
-   - Daily trading volumes
-   - Price movements
-   - Market capitalization
-   - Number of trades
+1. **Insider Trading Data**
+   - Transactions by company executives
+   - Board members' trading activities
+   - Fiscal council members' transactions
+   - Technical/consultative body members' trades
 
-2. **Company Information**
-   - Company identification (CNPJ)
-   - Trading codes
-   - Market segments
-   - Corporate actions
+2. **Related-Party Information**
+   - Transactions by controlling shareholders
+   - Trading by related individuals (spouses, partners)
+   - Transactions by dependent family members
+   - Trading by controlled companies
 
-3. **Market Metrics**
-   - Liquidity indicators
-   - Trading frequency
-   - Market concentration
-   - Sectoral distribution
+3. **Transaction Details**
+   - Trading dates and volumes
+   - Security types (stocks, derivatives)
+   - Transaction values
+   - Related company information
 
 ### Why It Matters
 
-This data is valuable for:
+This data is essential for:
 
-- **Investors**: Make informed investment decisions
-- **Researchers**: Study market behavior and trends
-- **Regulators**: Monitor market activity and compliance
-- **Companies**: Benchmark against peers and sector
-- **Analysts**: Develop market insights and reports
+- **Regulators**: Monitor compliance with CVM358 requirements
+- **Investors**: Assess corporate governance practices
+- **Companies**: Ensure regulatory compliance
+- **Analysts**: Study insider trading patterns
+- **Researchers**: Analyze market transparency
 
 ## 🌟 Features
 
@@ -81,8 +81,8 @@ This data is valuable for:
 ## 📊 Generated Files
 
 ### Datasets
-- `datasets/Brazil_Stock_Trading_Consolidated.csv`: Latest consolidated trading data
-- `datasets/Brazil_Stock_Trading_Individual.csv`: Latest individual trading data
+- `datasets/Brazil_Stock_Trading_Consolidated.csv`: Latest consolidated insider trading data
+- `datasets/Brazil_Stock_Trading_Individual.csv`: Latest individual insider trading data
 - `datasets/history/`: Historical backups with timestamps
 
 ### Reports
@@ -115,8 +115,8 @@ python br_stock_trading.py
 The script generates:
 
 1. **Processed Datasets**
-   - Consolidated trading data
-   - Individual trading data
+   - Consolidated insider trading data
+   - Individual insider trading data
    - Automatic backups with timestamps
 
 2. **HTML Reports**
@@ -186,33 +186,33 @@ The script generates:
 
 ## 📚 Use Cases
 
-### Financial Analysis
-- Market trend analysis
-- Liquidity studies
-- Volatility assessment
-- Sector performance comparison
-
-### Research
-- Academic studies
-- Market behavior research
-- Economic impact analysis
-- Corporate finance studies
-
-### Compliance
-- Regulatory reporting
-- Market surveillance
-- Transparency requirements
+### Compliance Monitoring
+- Track insider trading compliance
+- Monitor related-party transactions
+- Ensure regulatory reporting
 - Audit trail maintenance
 
-### Investment
-- Portfolio management
-- Risk assessment
-- Market timing analysis
-- Investment strategy development
+### Corporate Governance
+- Analyze insider trading patterns
+- Assess board member activities
+- Monitor controlling shareholders
+- Evaluate transparency practices
+
+### Market Analysis
+- Study insider trading trends
+- Analyze related-party transactions
+- Assess market transparency
+- Monitor regulatory compliance
+
+### Research
+- Academic studies on insider trading
+- Corporate governance research
+- Market transparency analysis
+- Regulatory impact studies
 
 ## 🤝 Contributing
 
-Feel free to submit issues and enhancement requests! We welcome contributions that help make this tool more valuable for the Brazilian financial market community.
+Feel free to submit issues and enhancement requests! We welcome contributions that help make this tool more valuable for monitoring CVM358 compliance and market transparency.
 
 ## 📜 License
 
@@ -220,7 +220,7 @@ Feel free to submit issues and enhancement requests! We welcome contributions th
 
 ## 🙏 Acknowledgments
 
-- CVM for providing the data
+- CVM for providing the CVM358 data
 - B3 (Brazilian Stock Exchange) for market infrastructure
 - Contributors and maintainers
 - Brazilian financial market community
