@@ -35,13 +35,13 @@ pip install -r requirements.txt
 
 Run the extractor:
 ```bash
-python extractor/br_stock_trading.py
+python br_stock_trading.py
 ```
 
 The script will:
 1. Download the latest trading data from CVM
 2. Process both consolidated and individual trading data
-3. Save the results in CSV format in the `datasets` directory at the root of the project
+3. Save the results in CSV format in the `datasets` directory
 
 ## Project Structure
 
@@ -50,9 +50,8 @@ CVM358/
 ├── README.md
 ├── requirements.txt
 ├── datasets/           # Output directory for CSV files
-└── extractor/
-    ├── br_stock_trading.py
-    └── utils.py
+├── br_stock_trading.py
+└── utils.py
 ```
 
 ## Output Files
