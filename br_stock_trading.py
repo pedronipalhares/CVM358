@@ -21,6 +21,7 @@ import time
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import zipfile
+from reports.report_generator import ReportGenerator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -272,6 +273,11 @@ def main():
             logger.info(f"Saved Individual data to: {output_path}")
             logger.info(f"Individual data shape: {individual_data.shape}")
             logger.info(f"Individual columns: {individual_data.columns.tolist()}")
+        
+        # Generate and print report
+        report_generator = ReportGenerator()
+        report = report_generator.generate_report(consolidated_data, individual_data)
+        report_generator.print_report(report)
         
         # Clean up
         for file in temp_dir.glob('*'):

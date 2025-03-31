@@ -7,6 +7,10 @@ __pycache__/
 datasets/
 *.csv
 
+# Reports
+reports/
+*.json
+
 # IDE files
 .vscode/
 .idea/
