@@ -5,6 +5,10 @@ import pandas as pd
 from colorama import init, Fore, Back, Style
 import shutil
 import os
+import matplotlib.pyplot as plt
+import io
+import base64
+import numpy as np
 
 # Initialize colorama
 init()
@@ -38,6 +42,80 @@ class ReportGenerator:
         except FileNotFoundError:
             return {}
     
+    def _generate_transaction_stats(self, consolidated_data):
+        """Generate transaction statistics and visualizations."""
+        # Transaction type distribution
+        transaction_types = consolidated_data['Movement_Type'].value_counts()
+        
+        # Create pie chart for transaction types
+        plt.figure(figsize=(10, 6))
+        plt.pie(transaction_types, labels=transaction_types.index, autopct='%1.1f%%')
+        plt.title('Distribution of Transaction Types')
+        plt.axis('equal')
+        
+        # Save plot to base64 string
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png')
+        img_buffer.seek(0)
+        transaction_types_chart = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
+        plt.close()
+        
+        # Monthly transaction volume
+        monthly_volume = consolidated_data.groupby(consolidated_data['Reference_Date'].dt.to_period('M'))['Volume'].sum()
+        
+        # Create line chart for monthly volume
+        plt.figure(figsize=(12, 6))
+        plt.plot(monthly_volume.index.astype(str), monthly_volume.values, marker='o')
+        plt.title('Monthly Transaction Volume')
+        plt.xlabel('Month')
+        plt.ylabel('Volume')
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        
+        # Save plot to base64 string
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png')
+        img_buffer.seek(0)
+        monthly_volume_chart = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
+        plt.close()
+        
+        # Top 10 companies by transaction volume
+        top_companies = consolidated_data.groupby('Company_Name')['Volume'].sum().sort_values(ascending=False).head(10)
+        
+        # Create bar chart for top companies
+        plt.figure(figsize=(12, 6))
+        plt.barh(top_companies.index, top_companies.values)
+        plt.title('Top 10 Companies by Transaction Volume')
+        plt.xlabel('Volume')
+        plt.tight_layout()
+        
+        # Save plot to base64 string
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png')
+        img_buffer.seek(0)
+        top_companies_chart = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
+        plt.close()
+        
+        # Calculate statistics
+        total_volume = consolidated_data['Volume'].sum()
+        avg_volume = consolidated_data['Volume'].mean()
+        max_volume = consolidated_data['Volume'].max()
+        min_volume = consolidated_data['Volume'].min()
+        
+        # Transaction type counts
+        transaction_type_counts = transaction_types.to_dict()
+        
+        return {
+            'transaction_types_chart': transaction_types_chart,
+            'monthly_volume_chart': monthly_volume_chart,
+            'top_companies_chart': top_companies_chart,
+            'total_volume': total_volume,
+            'avg_volume': avg_volume,
+            'max_volume': max_volume,
+            'min_volume': min_volume,
+            'transaction_type_counts': transaction_type_counts
+        }
+    
     def _generate_html_report(self, report_data):
         """Generate an HTML report with modern styling."""
         # Create companies list HTML
@@ -49,7 +127,18 @@ class ReportGenerator:
                     <span class="company-cnpj">CNPJ: {company['Company_CNPJ']}</span>
                 </div>
             """
-
+        
+        # Create transaction statistics HTML
+        stats = report_data['transaction_stats']
+        transaction_types_html = ""
+        for ttype, count in stats['transaction_type_counts'].items():
+            transaction_types_html += f"""
+                <div class="metric">
+                    <span class="metric-label">{ttype}</span>
+                    <span class="metric-value">{count:,}</span>
+                </div>
+            """
+        
         html_content = f"""
         <!DOCTYPE html>
         <html lang="pt-BR">
@@ -152,6 +241,39 @@ class ReportGenerator:
                     color: #666;
                     font-size: 0.9em;
                 }}
+                .chart-container {{
+                    margin: 20px 0;
+                    text-align: center;
+                }}
+                .chart-container img {{
+                    max-width: 100%;
+                    height: auto;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }}
+                .stats-grid {{
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    gap: 20px;
+                    margin-top: 20px;
+                }}
+                .stat-card {{
+                    background-color: white;
+                    padding: 15px;
+                    border-radius: 8px;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                    text-align: center;
+                }}
+                .stat-value {{
+                    font-size: 1.5em;
+                    font-weight: bold;
+                    color: #3498db;
+                    margin: 10px 0;
+                }}
+                .stat-label {{
+                    color: #666;
+                    font-size: 0.9em;
+                }}
                 @media (max-width: 768px) {{
                     .container {{
                         padding: 15px;
@@ -163,6 +285,9 @@ class ReportGenerator:
                         flex-direction: column;
                         align-items: flex-start;
                         gap: 5px;
+                    }}
+                    .stats-grid {{
+                        grid-template-columns: 1fr;
                     }}
                 }}
             </style>
@@ -210,9 +335,55 @@ class ReportGenerator:
                 </div>
 
                 <div class="section">
+                    <h2>📊 Transaction Statistics</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Volume</div>
+                            <div class="stat-value">{stats['total_volume']:,.2f}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Average Volume</div>
+                            <div class="stat-value">{stats['avg_volume']:,.2f}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Maximum Volume</div>
+                            <div class="stat-value">{stats['max_volume']:,.2f}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Minimum Volume</div>
+                            <div class="stat-value">{stats['min_volume']:,.2f}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
                     <h2>📋 Companies Reported in {report_data['latest_data']}</h2>
                     <div class="companies-list">
                         {companies_html}
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>📊 Transaction Type Distribution</h2>
+                    <div class="chart-container">
+                        <img src="data:image/png;base64,{stats['transaction_types_chart']}" alt="Transaction Type Distribution">
+                    </div>
+                    <div class="transaction-types">
+                        {transaction_types_html}
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>📈 Monthly Transaction Volume</h2>
+                    <div class="chart-container">
+                        <img src="data:image/png;base64,{stats['monthly_volume_chart']}" alt="Monthly Transaction Volume">
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>🏢 Top 10 Companies by Volume</h2>
+                    <div class="chart-container">
+                        <img src="data:image/png;base64,{stats['top_companies_chart']}" alt="Top 10 Companies by Volume">
                     </div>
                 </div>
                 
@@ -269,6 +440,9 @@ class ReportGenerator:
             last_run_records = last_run_records.get('consolidated', 0)
         new_records = total_records - last_run_records
         
+        # Generate transaction statistics
+        transaction_stats = self._generate_transaction_stats(consolidated_data)
+        
         # Create report data
         report_data = {
             'run_time': current_time,
@@ -276,7 +450,8 @@ class ReportGenerator:
             'total_records': total_records,
             'new_records': new_records,
             'unique_companies': unique_companies,
-            'last_month_companies': last_month_companies_list.to_dict('records')
+            'last_month_companies': last_month_companies_list.to_dict('records'),
+            'transaction_stats': transaction_stats
         }
         
         # Update run history
@@ -310,6 +485,17 @@ class ReportGenerator:
         print("🏢 Unique Companies:")
         print(f"  • Consolidated: {report_data['unique_companies']:,}\n")
         
-        print("="*50)
+        print("📊 Transaction Statistics:")
+        stats = report_data['transaction_stats']
+        print(f"  • Total Volume: {stats['total_volume']:,.2f}")
+        print(f"  • Average Volume: {stats['avg_volume']:,.2f}")
+        print(f"  • Maximum Volume: {stats['max_volume']:,.2f}")
+        print(f"  • Minimum Volume: {stats['min_volume']:,.2f}\n")
+        
+        print("📋 Transaction Types:")
+        for ttype, count in stats['transaction_type_counts'].items():
+            print(f"  • {ttype}: {count:,}")
+        
+        print("\n" + "="*50)
         print("Report generated by CVM358 Data Extractor")
         print("="*50 + "\n") 
