@@ -5,9 +5,6 @@ import pandas as pd
 from colorama import init, Fore, Back, Style
 import shutil
 import os
-import matplotlib.pyplot as plt
-import io
-import base64
 import numpy as np
 
 # Initialize colorama
@@ -42,79 +39,84 @@ class ReportGenerator:
         except FileNotFoundError:
             return {}
     
-    def _generate_transaction_stats(self, consolidated_data):
-        """Generate transaction statistics and visualizations."""
-        # Transaction type distribution
-        transaction_types = consolidated_data['Movement_Type'].value_counts()
+    def _process_agribusiness_data(self, consolidated_data):
+        """Process agribusiness and food & beverage companies data."""
+        # List of agribusiness and food & beverage companies
+        agribusiness_companies = [
+            'AMBEV S.A.',
+            'BOA SAFRA SEMENTES S.A',
+            'BRF S.A.',
+            'CAMIL ALIMENTOS S/A',
+            'JBS SA',
+            'M. DIAS BRANCO SA IND E COM DE ALIMENTOS',
+            'MARFRIG GLOBAL FOODS SA',
+            'MINERVA S/A',
+            'RAÍZEN S.A.',
+            'SLC AGRICOLA SA',
+            'TRÊS TENTOS AGROINDUSTRIAL S.A.'
+        ]
         
-        # Create pie chart for transaction types
-        plt.figure(figsize=(10, 6))
-        plt.pie(transaction_types, labels=transaction_types.index, autopct='%1.1f%%')
-        plt.title('Distribution of Transaction Types')
-        plt.axis('equal')
+        # Movement types to consider
+        movement_types = [
+            'Venda', 'Venda à termo', 'Venda à vista',
+            'Compra', 'Compra à termo', 'Compra à venda', 'Compra à vista'
+        ]
         
-        # Save plot to base64 string
-        img_buffer = io.BytesIO()
-        plt.savefig(img_buffer, format='png')
-        img_buffer.seek(0)
-        transaction_types_chart = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
-        plt.close()
+        # Asset types to consider
+        asset_types = [
+            'Ações', 'BDR Patrocinados', 'Bônus de Subscrição',
+            'Derivativos', 'Opção de Compra', 'Opção de Venda', 'Units'
+        ]
         
-        # Monthly transaction volume
-        monthly_volume = consolidated_data.groupby(consolidated_data['Reference_Date'].dt.to_period('M'))['Volume'].sum()
+        # Get the latest date
+        latest_date = consolidated_data['Reference_Date'].max()
         
-        # Create line chart for monthly volume
-        plt.figure(figsize=(12, 6))
-        plt.plot(monthly_volume.index.astype(str), monthly_volume.values, marker='o')
-        plt.title('Monthly Transaction Volume')
-        plt.xlabel('Month')
-        plt.ylabel('Volume')
-        plt.xticks(rotation=45)
-        plt.tight_layout()
+        # Filter data for agribusiness companies in the latest month
+        agribusiness_data = consolidated_data[
+            (consolidated_data['Company_Name'].isin(agribusiness_companies)) &
+            (consolidated_data['Reference_Date'] == latest_date) &
+            (consolidated_data['Movement_Type'].isin(movement_types)) &
+            (consolidated_data['Company_Type'] == 'Companhia') &
+            (consolidated_data['Asset_Type'].isin(asset_types))
+        ].copy()
         
-        # Save plot to base64 string
-        img_buffer = io.BytesIO()
-        plt.savefig(img_buffer, format='png')
-        img_buffer.seek(0)
-        monthly_volume_chart = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
-        plt.close()
+        # Create a mask for sales transactions
+        sales_mask = agribusiness_data['Movement_Type'].str.startswith('Venda')
         
-        # Top 10 companies by transaction volume
-        top_companies = consolidated_data.groupby('Company_Name')['Volume'].sum().sort_values(ascending=False).head(10)
+        # Calculate Adjusted_Quantity using numpy where
+        agribusiness_data.loc[:, 'Adjusted_Quantity'] = np.where(
+            sales_mask,
+            -agribusiness_data['Quantity'],
+            agribusiness_data['Quantity']
+        )
         
-        # Create bar chart for top companies
-        plt.figure(figsize=(12, 6))
-        plt.barh(top_companies.index, top_companies.values)
-        plt.title('Top 10 Companies by Transaction Volume')
-        plt.xlabel('Volume')
-        plt.tight_layout()
+        # Create pivot table
+        pivot_table = pd.pivot_table(
+            agribusiness_data,
+            values='Adjusted_Quantity',
+            index=['Company_Name', 'Asset_Type'],
+            columns='Position_Type',
+            aggfunc='sum',
+            fill_value=0
+        )
         
-        # Save plot to base64 string
-        img_buffer = io.BytesIO()
-        plt.savefig(img_buffer, format='png')
-        img_buffer.seek(0)
-        top_companies_chart = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
-        plt.close()
+        # Reset index to make Company_Name and Asset_Type regular columns
+        pivot_table = pivot_table.reset_index()
         
-        # Calculate statistics
-        total_volume = consolidated_data['Volume'].sum()
-        avg_volume = consolidated_data['Volume'].mean()
-        max_volume = consolidated_data['Volume'].max()
-        min_volume = consolidated_data['Volume'].min()
+        # Convert to dictionary for HTML rendering
+        pivot_data = []
+        for _, row in pivot_table.iterrows():
+            company_data = {
+                'Company_Name': row['Company_Name'],
+                'Asset_Type': row['Asset_Type']
+            }
+            # Add position types as columns
+            for col in pivot_table.columns:
+                if col not in ['Company_Name', 'Asset_Type']:
+                    company_data[col] = row[col]
+            pivot_data.append(company_data)
         
-        # Transaction type counts
-        transaction_type_counts = transaction_types.to_dict()
-        
-        return {
-            'transaction_types_chart': transaction_types_chart,
-            'monthly_volume_chart': monthly_volume_chart,
-            'top_companies_chart': top_companies_chart,
-            'total_volume': total_volume,
-            'avg_volume': avg_volume,
-            'max_volume': max_volume,
-            'min_volume': min_volume,
-            'transaction_type_counts': transaction_type_counts
-        }
+        return pivot_data
     
     def _generate_html_report(self, report_data):
         """Generate an HTML report with modern styling."""
@@ -128,17 +130,57 @@ class ReportGenerator:
                 </div>
             """
         
-        # Create transaction statistics HTML
-        stats = report_data['transaction_stats']
-        transaction_types_html = ""
-        for ttype, count in stats['transaction_type_counts'].items():
-            transaction_types_html += f"""
-                <div class="metric">
-                    <span class="metric-label">{ttype}</span>
-                    <span class="metric-value">{count:,}</span>
+        # Create agribusiness table HTML
+        agribusiness_html = ""
+        if report_data.get('agribusiness_data'):
+            # Get all position types from the data
+            position_types = set()
+            for company in report_data['agribusiness_data']:
+                for key in company.keys():
+                    if key not in ['Company_Name', 'Asset_Type']:
+                        position_types.add(key)
+            
+            # Create table header
+            agribusiness_html += """
+                <div class="table-container">
+                    <table class="agribusiness-table">
+                        <thead>
+                            <tr>
+                                <th>Company</th>
+                                <th>Asset Type</th>
+            """
+            
+            # Add position type columns
+            for pos_type in sorted(position_types):
+                agribusiness_html += f"<th>{pos_type}</th>"
+            
+            agribusiness_html += """
+                            </tr>
+                        </thead>
+                        <tbody>
+            """
+            
+            # Add data rows
+            for company in report_data['agribusiness_data']:
+                agribusiness_html += "<tr>"
+                agribusiness_html += f"<td>{company['Company_Name']}</td>"
+                agribusiness_html += f"<td>{company['Asset_Type']}</td>"
+                
+                # Add position type values
+                for pos_type in sorted(position_types):
+                    value = company.get(pos_type, 0)
+                    # Add color based on value (positive/negative)
+                    color_class = "positive" if value > 0 else "negative" if value < 0 else ""
+                    agribusiness_html += f"<td class='{color_class}'>{value:,.0f}</td>"
+                
+                agribusiness_html += "</tr>"
+            
+            agribusiness_html += """
+                        </tbody>
+                    </table>
                 </div>
             """
-        
+
         html_content = f"""
         <!DOCTYPE html>
         <html lang="pt-BR">
@@ -241,38 +283,32 @@ class ReportGenerator:
                     color: #666;
                     font-size: 0.9em;
                 }}
-                .chart-container {{
-                    margin: 20px 0;
-                    text-align: center;
+                .table-container {{
+                    overflow-x: auto;
+                    margin-top: 15px;
                 }}
-                .chart-container img {{
-                    max-width: 100%;
-                    height: auto;
-                    border-radius: 8px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }}
-                .stats-grid {{
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 20px;
-                    margin-top: 20px;
-                }}
-                .stat-card {{
-                    background-color: white;
-                    padding: 15px;
-                    border-radius: 8px;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-                    text-align: center;
-                }}
-                .stat-value {{
-                    font-size: 1.5em;
-                    font-weight: bold;
-                    color: #3498db;
-                    margin: 10px 0;
-                }}
-                .stat-label {{
-                    color: #666;
+                .agribusiness-table {{
+                    width: 100%;
+                    border-collapse: collapse;
                     font-size: 0.9em;
+                }}
+                .agribusiness-table th, .agribusiness-table td {{
+                    padding: 10px;
+                    text-align: left;
+                    border-bottom: 1px solid #eee;
+                }}
+                .agribusiness-table th {{
+                    background-color: #f1f1f1;
+                    font-weight: 600;
+                }}
+                .agribusiness-table tr:hover {{
+                    background-color: #f9f9f9;
+                }}
+                .positive {{
+                    color: #27ae60;
+                }}
+                .negative {{
+                    color: #e74c3c;
                 }}
                 @media (max-width: 768px) {{
                     .container {{
@@ -285,9 +321,6 @@ class ReportGenerator:
                         flex-direction: column;
                         align-items: flex-start;
                         gap: 5px;
-                    }}
-                    .stats-grid {{
-                        grid-template-columns: 1fr;
                     }}
                 }}
             </style>
@@ -335,28 +368,6 @@ class ReportGenerator:
                 </div>
 
                 <div class="section">
-                    <h2>📊 Transaction Statistics</h2>
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-label">Total Volume</div>
-                            <div class="stat-value">{stats['total_volume']:,.2f}</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-label">Average Volume</div>
-                            <div class="stat-value">{stats['avg_volume']:,.2f}</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-label">Maximum Volume</div>
-                            <div class="stat-value">{stats['max_volume']:,.2f}</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-label">Minimum Volume</div>
-                            <div class="stat-value">{stats['min_volume']:,.2f}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="section">
                     <h2>📋 Companies Reported in {report_data['latest_data']}</h2>
                     <div class="companies-list">
                         {companies_html}
@@ -364,27 +375,10 @@ class ReportGenerator:
                 </div>
                 
                 <div class="section">
-                    <h2>📊 Transaction Type Distribution</h2>
-                    <div class="chart-container">
-                        <img src="data:image/png;base64,{stats['transaction_types_chart']}" alt="Transaction Type Distribution">
-                    </div>
-                    <div class="transaction-types">
-                        {transaction_types_html}
-                    </div>
-                </div>
-                
-                <div class="section">
-                    <h2>📈 Monthly Transaction Volume</h2>
-                    <div class="chart-container">
-                        <img src="data:image/png;base64,{stats['monthly_volume_chart']}" alt="Monthly Transaction Volume">
-                    </div>
-                </div>
-                
-                <div class="section">
-                    <h2>🏢 Top 10 Companies by Volume</h2>
-                    <div class="chart-container">
-                        <img src="data:image/png;base64,{stats['top_companies_chart']}" alt="Top 10 Companies by Volume">
-                    </div>
+                    <h2>🌾 Agribusiness & Food & Beverage Companies - {report_data['latest_data']}</h2>
+                    <p>This section shows trading activities for agribusiness and food & beverage companies in the latest available month.</p>
+                    <p>Positive values indicate purchases, negative values indicate sales.</p>
+                    {agribusiness_html}
                 </div>
                 
                 <div class="footer">
@@ -440,8 +434,8 @@ class ReportGenerator:
             last_run_records = last_run_records.get('consolidated', 0)
         new_records = total_records - last_run_records
         
-        # Generate transaction statistics
-        transaction_stats = self._generate_transaction_stats(consolidated_data)
+        # Process agribusiness data
+        agribusiness_data = self._process_agribusiness_data(consolidated_data)
         
         # Create report data
         report_data = {
@@ -451,7 +445,7 @@ class ReportGenerator:
             'new_records': new_records,
             'unique_companies': unique_companies,
             'last_month_companies': last_month_companies_list.to_dict('records'),
-            'transaction_stats': transaction_stats
+            'agribusiness_data': agribusiness_data
         }
         
         # Update run history
@@ -485,17 +479,6 @@ class ReportGenerator:
         print("🏢 Unique Companies:")
         print(f"  • Consolidated: {report_data['unique_companies']:,}\n")
         
-        print("📊 Transaction Statistics:")
-        stats = report_data['transaction_stats']
-        print(f"  • Total Volume: {stats['total_volume']:,.2f}")
-        print(f"  • Average Volume: {stats['avg_volume']:,.2f}")
-        print(f"  • Maximum Volume: {stats['max_volume']:,.2f}")
-        print(f"  • Minimum Volume: {stats['min_volume']:,.2f}\n")
-        
-        print("📋 Transaction Types:")
-        for ttype, count in stats['transaction_type_counts'].items():
-            print(f"  • {ttype}: {count:,}")
-        
-        print("\n" + "="*50)
+        print("="*50)
         print("Report generated by CVM358 Data Extractor")
         print("="*50 + "\n") 
