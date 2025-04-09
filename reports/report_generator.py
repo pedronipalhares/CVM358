@@ -40,6 +40,16 @@ class ReportGenerator:
     
     def _generate_html_report(self, report_data):
         """Generate an HTML report with modern styling."""
+        # Create companies list HTML
+        companies_html = ""
+        for company in report_data['last_month_companies']:
+            companies_html += f"""
+                <div class="company-item">
+                    <span class="company-name">{company['Company_Name']}</span>
+                    <span class="company-cnpj">CNPJ: {company['Company_CNPJ']}</span>
+                </div>
+            """
+
         html_content = f"""
         <!DOCTYPE html>
         <html lang="pt-BR">
@@ -118,12 +128,41 @@ class ReportGenerator:
                     border-top: 2px solid #eee;
                     color: #666;
                 }}
+                .companies-list {{
+                    max-height: 400px;
+                    overflow-y: auto;
+                    margin-top: 15px;
+                }}
+                .company-item {{
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 10px;
+                    border-bottom: 1px solid #eee;
+                    background-color: white;
+                }}
+                .company-item:last-child {{
+                    border-bottom: none;
+                }}
+                .company-name {{
+                    font-weight: 500;
+                    color: #2c3e50;
+                }}
+                .company-cnpj {{
+                    color: #666;
+                    font-size: 0.9em;
+                }}
                 @media (max-width: 768px) {{
                     .container {{
                         padding: 15px;
                     }}
                     .section {{
                         padding: 15px;
+                    }}
+                    .company-item {{
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 5px;
                     }}
                 }}
             </style>
@@ -150,11 +189,7 @@ class ReportGenerator:
                     <h2>📈 Total Records</h2>
                     <div class="metric">
                         <span class="metric-label">Consolidated</span>
-                        <span class="metric-value highlight">{report_data['total_records']['consolidated']:,}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Individual</span>
-                        <span class="metric-value highlight">{report_data['total_records']['individual']:,}</span>
+                        <span class="metric-value highlight">{report_data['total_records']:,}</span>
                     </div>
                 </div>
                 
@@ -162,11 +197,7 @@ class ReportGenerator:
                     <h2>✨ New Records Since Last Run</h2>
                     <div class="metric">
                         <span class="metric-label">Consolidated</span>
-                        <span class="metric-value highlight">{report_data['new_records']['consolidated']:,}</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Individual</span>
-                        <span class="metric-value highlight">{report_data['new_records']['individual']:,}</span>
+                        <span class="metric-value highlight">{report_data['new_records']:,}</span>
                     </div>
                 </div>
                 
@@ -174,11 +205,14 @@ class ReportGenerator:
                     <h2>🏢 Unique Companies</h2>
                     <div class="metric">
                         <span class="metric-label">Consolidated</span>
-                        <span class="metric-value highlight">{report_data['unique_companies']['consolidated']:,}</span>
+                        <span class="metric-value highlight">{report_data['unique_companies']:,}</span>
                     </div>
-                    <div class="metric">
-                        <span class="metric-label">Individual</span>
-                        <span class="metric-value highlight">{report_data['unique_companies']['individual']:,}</span>
+                </div>
+
+                <div class="section">
+                    <h2>📋 Companies Reported in {report_data['latest_data']}</h2>
+                    <div class="companies-list">
+                        {companies_html}
                     </div>
                 </div>
                 
@@ -205,44 +239,44 @@ class ReportGenerator:
             for old_file in backup_files[:-10]:
                 old_file.unlink()
     
-    def generate_report(self, consolidated_data, individual_data):
+    def generate_report(self, consolidated_data, _):
         """Generate a report from the data."""
         # Get current time
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         # Get latest data date
-        latest_date = consolidated_data['Reference_Date'].max().strftime('%Y-%m')
+        latest_date = consolidated_data['Reference_Date'].max()
+        latest_date_str = latest_date.strftime('%Y-%m')
+        
+        # Get companies from last month
+        last_month_companies = consolidated_data[consolidated_data['Reference_Date'] == latest_date]
+        last_month_companies_list = last_month_companies[['Company_CNPJ', 'Company_Name']].drop_duplicates()
+        last_month_companies_list = last_month_companies_list.sort_values('Company_Name')
         
         # Get total records
-        total_records = {
-            'consolidated': len(consolidated_data),
-            'individual': len(individual_data)
-        }
+        total_records = len(consolidated_data)
         
         # Get unique companies
-        unique_companies = {
-            'consolidated': consolidated_data['Company_CNPJ'].nunique(),
-            'individual': individual_data['Company_CNPJ'].nunique()
-        }
+        unique_companies = consolidated_data['Company_CNPJ'].nunique()
         
         # Load run history
         history = self._load_run_history()
         
         # Get new records since last run
         last_run = history.get('last_run', {})
-        last_run_records = last_run.get('total_records', {})
-        new_records = {
-            'consolidated': total_records['consolidated'] - last_run_records.get('consolidated', 0),
-            'individual': total_records['individual'] - last_run_records.get('individual', 0)
-        }
+        last_run_records = last_run.get('total_records', 0)
+        if isinstance(last_run_records, dict):
+            last_run_records = last_run_records.get('consolidated', 0)
+        new_records = total_records - last_run_records
         
         # Create report data
         report_data = {
             'run_time': current_time,
-            'latest_data': latest_date,
+            'latest_data': latest_date_str,
             'total_records': total_records,
             'new_records': new_records,
-            'unique_companies': unique_companies
+            'unique_companies': unique_companies,
+            'last_month_companies': last_month_companies_list.to_dict('records')
         }
         
         # Update run history
@@ -268,16 +302,13 @@ class ReportGenerator:
         print(f"📅 Latest Data Available: {report_data['latest_data']}\n")
         
         print("📈 Total Records:")
-        print(f"  • Consolidated: {report_data['total_records']['consolidated']:,}")
-        print(f"  • Individual: {report_data['total_records']['individual']:,}\n")
+        print(f"  • Consolidated: {report_data['total_records']:,}\n")
         
         print("✨ New Records Since Last Run:")
-        print(f"  • Consolidated: {report_data['new_records']['consolidated']:,}")
-        print(f"  • Individual: {report_data['new_records']['individual']:,}\n")
+        print(f"  • Consolidated: {report_data['new_records']:,}\n")
         
         print("🏢 Unique Companies:")
-        print(f"  • Consolidated: {report_data['unique_companies']['consolidated']:,}")
-        print(f"  • Individual: {report_data['unique_companies']['individual']:,}\n")
+        print(f"  • Consolidated: {report_data['unique_companies']:,}\n")
         
         print("="*50)
         print("Report generated by CVM358 Data Extractor")

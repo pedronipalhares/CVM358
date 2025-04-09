@@ -108,7 +108,6 @@ def process_trading_data(csv_files):
     """Process the trading data from CSV files."""
     try:
         consolidated_data = []
-        individual_data = []
         
         for csv_path in csv_files:
             try:
@@ -116,7 +115,7 @@ def process_trading_data(csv_files):
                 df = pd.read_csv(csv_path, encoding='latin1', sep=';', decimal=',')
                 logger.info(f"Processing file: {csv_path.name}")
                 
-                # Add file type information and process accordingly
+                # Only process consolidated files
                 if '_con_' in str(csv_path).lower():
                     df['File_Type'] = 'Consolidated'
                     # Mapping for consolidated files
@@ -143,27 +142,6 @@ def process_trading_data(csv_files):
                     # Rename columns that exist in the data
                     df = df.rename(columns={k: v for k, v in columns_mapping.items() if k in df.columns})
                     consolidated_data.append(df)
-                else:
-                    df['File_Type'] = 'Individual'
-                    # Mapping for individual files
-                    columns_mapping = {
-                        'CNPJ_Companhia': 'Company_CNPJ',
-                        'Nome_Companhia': 'Company_Name',
-                        'Data_Referencia': 'Reference_Date',
-                        'Versao': 'Version',
-                        'Codigo_CVM': 'CVM_Code',
-                        'Categoria': 'Category',
-                        'Tipo': 'Type',
-                        'Data_Entrega': 'Delivery_Date',
-                        'Tipo_Apresentacao': 'Presentation_Type',
-                        'Motivo_Reapresentacao': 'Restatement_Reason',
-                        'Protocolo_Entrega': 'Delivery_Protocol',
-                        'Link_Download': 'Download_Link',
-                        'File_Type': 'File_Type'
-                    }
-                    # Rename columns that exist in the data
-                    df = df.rename(columns={k: v for k, v in columns_mapping.items() if k in df.columns})
-                    individual_data.append(df)
                     
             except Exception as e:
                 logger.error(f"Error processing file {csv_path}: {str(e)}")
@@ -195,33 +173,7 @@ def process_trading_data(csv_files):
         else:
             combined_consolidated = pd.DataFrame()
             
-        # Process individual data
-        if individual_data:
-            combined_individual = pd.concat(individual_data, ignore_index=True)
-            # Convert date columns
-            combined_individual['Reference_Date'] = pd.to_datetime(combined_individual['Reference_Date'])
-            combined_individual['Delivery_Date'] = pd.to_datetime(combined_individual['Delivery_Date'])
-            
-            # Convert Version to numeric, replacing non-numeric versions with NaN
-            combined_individual['Version'] = pd.to_numeric(combined_individual['Version'], errors='coerce')
-            
-            # Group by key fields and get the latest version
-            key_fields = ['Reference_Date', 'Company_CNPJ', 'Company_Name', 'CVM_Code', 'Category', 'Type']
-            combined_individual = (combined_individual
-                .sort_values(['Reference_Date', 'Version'], ascending=[True, False])
-                .groupby(key_fields, as_index=False)
-                .first()
-                .sort_values('Reference_Date')
-                .reset_index(drop=True))
-            
-            # Log version information
-            logger.info(f"Individual data version range: {combined_individual['Version'].min()} to {combined_individual['Version'].max()}")
-            logger.info(f"Number of unique dates in individual data: {combined_individual['Reference_Date'].nunique()}")
-            
-        else:
-            combined_individual = pd.DataFrame()
-            
-        return combined_consolidated, combined_individual
+        return combined_consolidated
     except Exception as e:
         logger.error(f"Error processing trading data: {str(e)}")
         raise
@@ -318,7 +270,7 @@ def main():
         # Process data
         process_start = time.time()
         logger.info("⚙️ Processing trading data...")
-        consolidated_data, individual_data = process_trading_data(all_csv_files)
+        consolidated_data = process_trading_data(all_csv_files)
         process_time = time.time() - process_start
         logger.info(f"⏱️ Processing time: {process_time:.2f} seconds")
         logger.info("✅ Data processing completed")
@@ -335,20 +287,11 @@ def main():
             logger.info(f"📊 Consolidated data shape: {consolidated_data.shape}")
             backup_dataset(output_path, backup_dir)
             logger.info(f"📚 Created backup of Consolidated data in: {backup_dir}")
-            
-        # Save individual data
-        if not individual_data.empty:
-            output_path = datasets_dir / 'Brazil_Stock_Trading_Individual.csv'
-            individual_data.to_csv(output_path, index=False, encoding='utf-8-sig')
-            logger.info(f"💾 Saved Individual data to: {output_path}")
-            logger.info(f"📊 Individual data shape: {individual_data.shape}")
-            backup_dataset(output_path, backup_dir)
-            logger.info(f"📚 Created backup of Individual data in: {backup_dir}")
         
         # Generate and print report
         logger.info("📈 Generating reports...")
         report_generator = ReportGenerator()
-        report = report_generator.generate_report(consolidated_data, individual_data)
+        report = report_generator.generate_report(consolidated_data, pd.DataFrame())
         report_generator.print_report(report)
         logger.info(f"📄 Latest report generated: reports/latest_report.html")
         logger.info(f"📚 Historical reports stored in: reports/history/")

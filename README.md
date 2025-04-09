@@ -19,7 +19,7 @@ CVM358 is crucial for market transparency and corporate governance in Brazil. Th
 
 ### What We're Tracking
 
-The data includes detailed information about insider trading and related-party transactions:
+The data includes detailed information about insider trading and related-party transactions from consolidated reports:
 
 1. **Insider Trading Data**
    - Transactions by company executives
@@ -54,7 +54,7 @@ This data is essential for:
 ### Data Extraction
 - Parallel downloads of ZIP files using ThreadPoolExecutor
 - Automatic handling of multiple file versions
-- Support for both consolidated and individual trading data
+- Focus on consolidated trading data
 - Robust error handling and retry mechanisms
 - SSL/TLS compatibility for secure downloads
 
@@ -77,12 +77,12 @@ This data is essential for:
 - Detailed execution metrics and timing information
 - Historical report tracking
 - Performance statistics
+- Monthly company reporting list
 
 ## 📊 Generated Files
 
 ### Datasets
 - `datasets/Brazil_Stock_Trading_Consolidated.csv`: Latest consolidated insider trading data
-- `datasets/Brazil_Stock_Trading_Individual.csv`: Latest individual insider trading data
 - `datasets/history/`: Historical backups with timestamps
 
 ### Reports
@@ -116,7 +116,6 @@ The script generates:
 
 1. **Processed Datasets**
    - Consolidated insider trading data
-   - Individual insider trading data
    - Automatic backups with timestamps
 
 2. **HTML Reports**
@@ -125,6 +124,7 @@ The script generates:
    - Total records processed
    - New records since last run
    - Unique companies count
+   - List of companies that reported in the latest month
 
 3. **Console Output**
    - Progress indicators
@@ -146,6 +146,7 @@ The script generates:
 - Color-coded sections
 - Mobile-friendly layout
 - Historical tracking
+- Monthly company reporting list with CNPJ information
 
 ## 🛡️ Error Handling
 
